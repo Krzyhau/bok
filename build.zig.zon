@@ -1,0 +1,17 @@
+.{
+    .name = "bok",
+    .version = "0.0.0",
+    .dependencies = .{
+        .sdl = .{
+            .url = "https://github.com/jayschwa/SDL/archive/d602eaed698da8075561eadf8500e2020132d35a.tar.gz",
+            .hash = "12201990ac338db78888369a5d67ba311f673971a1b7638830be661df9f137882c8e",
+        },
+    },
+    .paths = .{
+        "LICENSE",
+        "README.md",
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
