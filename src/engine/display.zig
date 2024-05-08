@@ -1,48 +1,44 @@
 const std = @import("std");
 
-pub const Display = struct {
-    pub const width = 84;
-    pub const height = 48;
+pub const width = 84;
+pub const height = 48;
 
-    pixels: [width * height]bool,
+var pixels = [_]bool{false} ** (width * height);
 
-    pub fn init() Display {
-        return .{
-            .pixels = [_]bool{false} ** (width * height),
-        };
+pub fn fill(value: bool) void {
+    @memset(&pixels, value);
+}
+
+pub fn clear() void {
+    fill(false);
+}
+
+pub fn set_pixel(x: usize, y: usize, value: bool) void {
+    if (is_within_bounds(x, y)) {
+        pixels[coords_to_index(x, y)] = value;
     }
+}
 
-    pub fn fill(self: *Display, value: bool) void {
-        std.mem.set(bool, &self.pixels, value);
+pub fn get_pixel(x: usize, y: usize) bool {
+    if (is_within_bounds(x, y)) {
+        return pixels[coords_to_index(x, y)];
+    } else {
+        return false;
     }
+}
 
-    pub fn clear(self: *Display) void {
-        self.fill(false);
-    }
+fn coords_to_index(x: usize, y: usize) usize {
+    return y * width + x;
+}
 
-    pub fn set_pixel(self: *Display, x: usize, y: usize, value: bool) void {
-        if (self.is_within_bounds(x, y)) {
-            self.pixels[y * width + x] = value;
+pub fn is_within_bounds(x: usize, y: usize) bool {
+    return x >= 0 and y >= 0 and x < width and y < height;
+}
+
+pub fn rect(x: usize, y: usize, rect_width: usize, rect_height: usize) void {
+    for (x..(x + rect_width)) |i| {
+        for (y..(y + rect_height)) |j| {
+            set_pixel(i, j, true);
         }
     }
-
-    pub fn get_pixel(self: Display, x: usize, y: usize) bool {
-        if (self.is_within_bounds(x, y)) {
-            return self.pixels[y * width + x];
-        } else {
-            return false;
-        }
-    }
-
-    pub fn is_within_bounds(self: Display, x: usize, y: usize) bool {
-        return x >= 0 and y >= 0 and x < self.width and y < self.height;
-    }
-
-    pub fn rect(self: *Display, x: usize, y: usize, rect_width: usize, rect_height: usize) void {
-        for (x..(x + rect_width)) |i| {
-            for (y..(y + rect_height)) |j| {
-                self.set_pixel(i, j, true);
-            }
-        }
-    }
-};
+}

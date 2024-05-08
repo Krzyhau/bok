@@ -1,4 +1,7 @@
-pub const math = @import("math/main.zig");
+const Game = @import("game.zig");
+const Input = @import("input.zig");
 
-pub const Display = @import("display.zig").Display;
-pub const Input = @import("input.zig").Input;
+pub fn process() void {
+    Input.process();
+    Game.process();
+}
