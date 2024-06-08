@@ -10,14 +10,12 @@ pub fn main() !void {
 }
 
 pub fn setup_and_activate() !void {
-    SDLController.settings = .{
+    SDLController.activate(.{
         .window_name = "BOK (SDL simulation)",
         .render_scale = 10,
         .fill_color = .{ .r = 67, .g = 82, .b = 61 },
         .clear_color = .{ .r = 199, .g = 240, .b = 216 },
-    };
-
-    SDLController.activate() catch {
+    }) catch {
         std.debug.print("Unable to initialize SDL I/O: {s}", .{SDL.SDL_GetError()});
         return error.SDLInitializationFailed;
     };

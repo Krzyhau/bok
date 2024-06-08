@@ -4,7 +4,7 @@ const Input = @import("input.zig");
 const FontRenderer = @import("text/font_renderer.zig");
 const Fonts = @import("text/fonts.zig");
 
-const Vector3 = @import("math/vector.zig").Vector3;
+const Vector3 = @import("math/Vector3.zig");
 
 var player_pos = Vector3.init(0, 0, 0);
 

@@ -13,13 +13,15 @@ pub const Settings = struct {
     clear_color: SDL.SDL_Color,
 };
 
-pub var window: *SDL.SDL_Window = undefined;
-pub var renderer: *SDL.SDL_Renderer = undefined;
+pub var window: ?*SDL.SDL_Window = null;
+pub var renderer: ?*SDL.SDL_Renderer = null;
 var is_active = false;
 
 pub var settings: Settings = undefined;
 
-pub fn activate() !void {
+pub fn activate(settingsToApply: Settings) !void {
+    settings = settingsToApply;
+
     try initialize_sdl();
     try create_sdl_window();
     try create_sdl_renderer();
@@ -56,8 +58,8 @@ fn create_sdl_renderer() !void {
 
 pub fn deactivate() void {
     stop();
-    if (renderer != undefined) SDL.SDL_DestroyRenderer(renderer);
-    if (window != undefined) SDL.SDL_DestroyWindow(window);
+    if (renderer) |r| SDL.SDL_DestroyRenderer(r);
+    if (window) |w| SDL.SDL_DestroyWindow(w);
     SDL.SDL_Quit();
 }
 
