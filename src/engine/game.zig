@@ -4,9 +4,9 @@ const Input = @import("input.zig");
 const FontRenderer = @import("text/font_renderer.zig");
 const Fonts = @import("text/fonts.zig");
 
-const Vector3 = @import("math/Vector3.zig");
+const Vector2i = @import("math/vector.zig").Vector2i;
 
-var player_pos = Vector3.init(0, 0, 0);
+var player_pos = Vector2i{ .x = 0, .y = 0 };
 
 pub fn process() void {
     if (Input.is_key_just_pressed(.two)) {
@@ -24,9 +24,6 @@ pub fn process() void {
 
     Display.clear();
 
-    const x: isize = @intFromFloat(player_pos.x);
-    const y: isize = @intFromFloat(player_pos.y);
-
-    Display.set_pixel(@bitCast(x), @bitCast(y), true);
+    Display.set_pixel(@bitCast(player_pos.x), @bitCast(player_pos.y), true);
     FontRenderer.print("This is a test!", Fonts.classic, 5, 5, true);
 }
