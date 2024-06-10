@@ -5,6 +5,8 @@ const Display = @import("../display.zig");
 const Vector2 = @import("../math/Vector2.zig");
 const Vector3 = @import("../math/Vector3.zig");
 
+var outline: f32 = 0.5;
+
 pub fn rasterize_triangle(a: Vector3, b: Vector3, c: Vector3) void {
     const screen_a = Vector2{ .x = a.x, .y = a.y };
     const screen_b = Vector2{ .x = b.x, .y = b.y };
@@ -22,6 +24,8 @@ pub fn rasterize_triangle(a: Vector3, b: Vector3, c: Vector3) void {
     const d2 = normal_2.dot(screen_b);
     const d3 = normal_3.dot(screen_c);
 
+    const clockwise = normal_1.dot(screen_c) < d1;
+
     const min_x: isize = @intFromFloat(@floor(@min(screen_a.x, @min(screen_b.x, screen_c.x))));
     const max_x: isize = @intFromFloat(@floor(@max(screen_a.x, @max(screen_b.x, screen_c.x))));
     const min_y: isize = @intFromFloat(@ceil(@min(screen_a.y, @min(screen_b.y, screen_c.y))));
@@ -33,8 +37,8 @@ pub fn rasterize_triangle(a: Vector3, b: Vector3, c: Vector3) void {
     const min_point_d_2 = normal_2.dot(min_point) - d2;
     const min_point_d_3 = normal_3.dot(min_point) - d3;
 
-    const width: usize = @bitCast(max_x - min_x + 1);
-    const height: usize = @bitCast(max_y - min_y + 1);
+    const width: usize = @intCast(max_x - min_x + 1);
+    const height: usize = @intCast(max_y - min_y + 1);
 
     for (0..width) |ix| {
         for (0..height) |iy| {
@@ -45,10 +49,14 @@ pub fn rasterize_triangle(a: Vector3, b: Vector3, c: Vector3) void {
             const d_2 = min_point_d_2 + normal_2.x * x + normal_2.y * y;
             const d_3 = min_point_d_3 + normal_3.x * x + normal_3.y * y;
 
-            const is_inside = d_1 >= 0 and d_2 >= 0 and d_3 >= 0;
+            const is_inside_clockwise = d_1 <= outline and d_2 <= outline and d_3 <= outline;
+            const is_inside_counter_clockwise = d_1 >= -outline and d_2 >= -outline and d_3 >= -outline;
+
+            const is_inside = is_inside_clockwise and clockwise or is_inside_counter_clockwise and !clockwise;
+
             if (is_inside) {
-                const pixel_x: usize = @as(usize, @bitCast(min_x)) + ix;
-                const pixel_y: usize = @as(usize, @bitCast(min_y)) + iy;
+                const pixel_x: usize = @as(usize, @intCast(min_x)) + ix;
+                const pixel_y: usize = @as(usize, @intCast(min_y)) + iy;
                 Display.set_pixel(pixel_x, pixel_y, true);
             }
         }
