@@ -54,5 +54,7 @@ pub fn len(a: Vector2) f32 {
 }
 
 pub fn norm(a: Vector2) Vector2 {
-    return a.scale(1.0 / a.len());
+    const length = a.len();
+    if (length == 0.0) return .{ .x = 0, .y = 0 };
+    return a.scale(1.0 / length);
 }

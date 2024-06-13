@@ -5,60 +5,137 @@ const Display = @import("../display.zig");
 const Vector2 = @import("../math/Vector2.zig");
 const Vector3 = @import("../math/Vector3.zig");
 
-var outline: f32 = 0.5;
+const RasterizerSettings = struct {
+    thickness: f32 = 0.5,
+    filled: bool = true,
+    screen_set: bool = true,
+};
 
-pub fn rasterize_triangle(a: Vector3, b: Vector3, c: Vector3) void {
-    const screen_a = Vector2{ .x = a.x, .y = a.y };
-    const screen_b = Vector2{ .x = b.x, .y = b.y };
-    const screen_c = Vector2{ .x = c.x, .y = c.y };
+pub fn rasterize_line(vertices: [2]Vector3, settings: RasterizerSettings) void {
+    rasterize_polygon(2, vertices, settings);
+}
 
-    const dir_1 = screen_b.sub(screen_a).norm();
-    const dir_2 = screen_c.sub(screen_b).norm();
-    const dir_3 = screen_a.sub(screen_c).norm();
+pub fn rasterize_triangle(vertices: [3]Vector3, settings: RasterizerSettings) void {
+    rasterize_polygon(3, vertices, settings);
+}
 
-    const normal_1 = Vector2{ .x = dir_1.y, .y = -dir_1.x };
-    const normal_2 = Vector2{ .x = dir_2.y, .y = -dir_2.x };
-    const normal_3 = Vector2{ .x = dir_3.y, .y = -dir_3.x };
+pub fn rasterize_quad(vertices: [4]Vector3, settings: RasterizerSettings) void {
+    rasterize_polygon(4, vertices, settings);
+}
 
-    const d1 = normal_1.dot(screen_a);
-    const d2 = normal_2.dot(screen_b);
-    const d3 = normal_3.dot(screen_c);
+pub fn rasterize_polygon(comptime N: comptime_int, vertices: [N]Vector3, settings: RasterizerSettings) void {
+    var screen_vertices: [N]Vector2 = undefined;
+    inline for (vertices, 0..) |vertex, i| screen_vertices[i] = Vector2{ .x = vertex.x, .y = vertex.y };
 
-    const clockwise = normal_1.dot(screen_c) < d1;
+    const planes = get_shape_planes(N, screen_vertices);
 
-    const min_x: isize = @intFromFloat(@floor(@min(screen_a.x, @min(screen_b.x, screen_c.x))));
-    const max_x: isize = @intFromFloat(@floor(@max(screen_a.x, @max(screen_b.x, screen_c.x))));
-    const min_y: isize = @intFromFloat(@ceil(@min(screen_a.y, @min(screen_b.y, screen_c.y))));
-    const max_y: isize = @intFromFloat(@ceil(@max(screen_a.y, @max(screen_b.y, screen_c.y))));
+    const bounds = get_shape_bounds(N, vertices, settings);
+    const min_point = Vector2{ .x = @floatFromInt(bounds.min_x), .y = @floatFromInt(bounds.min_y) };
 
-    const min_point = Vector2{ .x = @floatFromInt(min_x), .y = @floatFromInt(min_y) };
+    const width: usize = @intCast(bounds.max_x - bounds.min_x + 1);
+    const height: usize = @intCast(bounds.max_y - bounds.min_y + 1);
 
-    const min_point_d_1 = normal_1.dot(min_point) - d1;
-    const min_point_d_2 = normal_2.dot(min_point) - d2;
-    const min_point_d_3 = normal_3.dot(min_point) - d3;
+    var min_point_distances: [N]f32 = undefined;
+    inline for (0..N) |i| min_point_distances[i] = point_distance_to_edge_plane(min_point, planes[i]);
 
-    const width: usize = @intCast(max_x - min_x + 1);
-    const height: usize = @intCast(max_y - min_y + 1);
+    const half_thickness = settings.thickness * 0.5;
 
     for (0..width) |ix| {
         for (0..height) |iy| {
             const x: f32 = @floatFromInt(ix);
             const y: f32 = @floatFromInt(iy);
 
-            const d_1 = min_point_d_1 + normal_1.x * x + normal_1.y * y;
-            const d_2 = min_point_d_2 + normal_2.x * x + normal_2.y * y;
-            const d_3 = min_point_d_3 + normal_3.x * x + normal_3.y * y;
+            var is_in_inner = true;
+            var is_in_outer = true;
 
-            const is_inside_clockwise = d_1 <= outline and d_2 <= outline and d_3 <= outline;
-            const is_inside_counter_clockwise = d_1 >= -outline and d_2 >= -outline and d_3 >= -outline;
+            inline for (0..vertices.len) |i| {
+                const d = min_point_distances[i] + planes[i].normal.x * x + planes[i].normal.y * y;
+                if (d > -half_thickness) is_in_inner = false;
+                if (d > half_thickness) is_in_outer = false;
+            }
 
-            const is_inside = is_inside_clockwise and clockwise or is_inside_counter_clockwise and !clockwise;
-
-            if (is_inside) {
-                const pixel_x: usize = @as(usize, @intCast(min_x)) + ix;
-                const pixel_y: usize = @as(usize, @intCast(min_y)) + iy;
-                Display.set_pixel(pixel_x, pixel_y, true);
+            if (is_in_outer and (settings.filled or !is_in_inner)) {
+                const pixel_x: usize = @as(usize, @intCast(bounds.min_x)) + ix;
+                const pixel_y: usize = @as(usize, @intCast(bounds.min_y)) + iy;
+                Display.set_pixel(pixel_x, pixel_y, settings.screen_set);
             }
         }
     }
+}
+
+fn get_shape_planes(comptime N: comptime_int, screen_vertices: [N]Vector2) [N]PolygonEdgePlane {
+    const shape_clockwise = is_shape_clockwise(N, screen_vertices);
+
+    var planes: [N]PolygonEdgePlane = undefined;
+    inline for (0..N) |i| {
+        planes[i] = get_edge_plane_from_points(screen_vertices[i], screen_vertices[(i + 1) % N], !shape_clockwise);
+    }
+    return planes;
+}
+
+fn is_shape_clockwise(comptime N: comptime_int, screen_vertices: [N]Vector2) bool {
+    var sum: f32 = 0.0;
+    inline for (0..N) |i| {
+        const p1 = screen_vertices[i];
+        const p2 = screen_vertices[(i + 1) % N];
+        sum += (p2.x - p1.x) * (p2.y + p1.y);
+    }
+    return sum > 0.0;
+}
+
+const PolygonEdgePlane = struct {
+    normal: Vector2,
+    distance: f32,
+};
+
+fn get_edge_plane_from_points(a: Vector2, b: Vector2, reversed: bool) PolygonEdgePlane {
+    const dir = a.sub(b).norm();
+    const dir_signed = if (reversed) dir.scale(-1.0) else dir;
+    const normal = Vector2{ .x = dir_signed.y, .y = -dir_signed.x };
+    const distance = normal.dot(a);
+
+    return .{ .normal = normal, .distance = distance };
+}
+
+fn point_distance_to_edge_plane(point: Vector2, plane: PolygonEdgePlane) f32 {
+    return plane.normal.dot(point) - plane.distance;
+}
+
+const ShapeBounds = struct {
+    min_x: usize,
+    max_x: usize,
+    min_y: usize,
+    max_y: usize,
+};
+
+fn get_shape_bounds(comptime N: comptime_int, vertices: [N]Vector3, settings: RasterizerSettings) ShapeBounds {
+    var min_x_real: f32 = Display.width;
+    var max_x_real: f32 = 0.0;
+    var min_y_real: f32 = Display.height;
+    var max_y_real: f32 = 0.0;
+
+    inline for (0..N) |i| {
+        const vertex = vertices[i];
+        if (vertex.x < min_x_real) min_x_real = vertex.x;
+        if (vertex.x > max_x_real) max_x_real = vertex.x;
+        if (vertex.y < min_y_real) min_y_real = vertex.y;
+        if (vertex.y > max_y_real) max_y_real = vertex.y;
+    }
+
+    const min_x_unclamped: isize = @intFromFloat(@floor(min_x_real - settings.thickness));
+    const max_x_unclamped: isize = @intFromFloat(@floor(max_x_real + settings.thickness));
+    const min_y_unclamped: isize = @intFromFloat(@ceil(min_y_real - settings.thickness));
+    const max_y_unclamped: isize = @intFromFloat(@ceil(max_y_real + settings.thickness));
+
+    const min_x: usize = @intCast(@max(0, min_x_unclamped));
+    const max_x: usize = @intCast(@min(Display.width - 1, max_x_unclamped));
+    const min_y: usize = @intCast(@max(0, min_y_unclamped));
+    const max_y: usize = @intCast(@min(Display.height - 1, max_y_unclamped));
+
+    return .{
+        .min_x = min_x,
+        .max_x = max_x,
+        .min_y = min_y,
+        .max_y = max_y,
+    };
 }
