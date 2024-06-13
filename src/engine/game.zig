@@ -17,7 +17,7 @@ pub fn process() void {
     Display.clear();
 
     Display.set_pixel(@bitCast(player_pos.x), @bitCast(player_pos.y), true);
-    FontRenderer.print("This is a test!", Fonts.classic, 5, 5, true);
+    FontRenderer.print("This is a test!", Fonts.small, 5, 5, true);
 
     const triangle: [3]Vector3 = .{
         .{ .x = 2, .y = 20, .z = 0 },

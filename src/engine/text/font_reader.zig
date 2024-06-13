@@ -31,8 +31,7 @@ pub const FontReader = struct {
 
     fn read_font(self: *Self) Font {
         const line_height = self.read_number(',');
-        const char_padding = self.read_number(',');
-        self.skip_to('\n');
+        const char_padding = self.read_number('\n');
         self.skip_to('\n');
 
         var font = Font.init();
