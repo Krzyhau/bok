@@ -68,6 +68,8 @@ pub fn stop() void {
 }
 
 pub fn start_loop() void {
+    Engine.init();
+
     while (is_active) {
         process_events();
         update();

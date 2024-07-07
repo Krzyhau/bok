@@ -5,25 +5,27 @@ const Display = @import("../display.zig");
 const Vector2 = @import("../math/Vector2.zig");
 const Vector3 = @import("../math/Vector3.zig");
 
-const RasterizerSettings = struct {
+const Settings = struct {
     thickness: f32 = 0.5,
     filled: bool = true,
     screen_set: bool = true,
 };
 
-pub fn rasterize_line(vertices: [2]Vector3, settings: RasterizerSettings) void {
+pub fn rasterize_line(vertices: [2]Vector3, settings: Settings) void {
     rasterize_polygon(2, vertices, settings);
 }
 
-pub fn rasterize_triangle(vertices: [3]Vector3, settings: RasterizerSettings) void {
+pub fn rasterize_triangle(vertices: [3]Vector3, settings: Settings) void {
     rasterize_polygon(3, vertices, settings);
 }
 
-pub fn rasterize_quad(vertices: [4]Vector3, settings: RasterizerSettings) void {
+pub fn rasterize_quad(vertices: [4]Vector3, settings: Settings) void {
     rasterize_polygon(4, vertices, settings);
 }
 
-pub fn rasterize_polygon(comptime N: comptime_int, vertices: [N]Vector3, settings: RasterizerSettings) void {
+pub fn rasterize_polygon(comptime N: comptime_int, vertices: [N]Vector3, settings: Settings) void {
+    if (is_polygon_behind_screen_space(N, vertices)) return;
+
     var screen_vertices: [N]Vector2 = undefined;
     inline for (vertices, 0..) |vertex, i| screen_vertices[i] = Vector2{ .x = vertex.x, .y = vertex.y };
 
@@ -61,6 +63,13 @@ pub fn rasterize_polygon(comptime N: comptime_int, vertices: [N]Vector3, setting
             }
         }
     }
+}
+
+fn is_polygon_behind_screen_space(comptime N: comptime_int, vertices: [N]Vector3) bool {
+    for (vertices) |vertex| {
+        if (vertex.z > 0.0) return false;
+    }
+    return true;
 }
 
 fn get_shape_planes(comptime N: comptime_int, screen_vertices: [N]Vector2) [N]PolygonEdgePlane {
@@ -108,7 +117,7 @@ const ShapeBounds = struct {
     max_y: usize,
 };
 
-fn get_shape_bounds(comptime N: comptime_int, vertices: [N]Vector3, settings: RasterizerSettings) ShapeBounds {
+fn get_shape_bounds(comptime N: comptime_int, vertices: [N]Vector3, settings: Settings) ShapeBounds {
     var min_x_real: f32 = Display.width;
     var max_x_real: f32 = 0.0;
     var min_y_real: f32 = Display.height;
@@ -127,10 +136,10 @@ fn get_shape_bounds(comptime N: comptime_int, vertices: [N]Vector3, settings: Ra
     const min_y_unclamped: isize = @intFromFloat(@ceil(min_y_real - settings.thickness));
     const max_y_unclamped: isize = @intFromFloat(@ceil(max_y_real + settings.thickness));
 
-    const min_x: usize = @intCast(@max(0, min_x_unclamped));
     const max_x: usize = @intCast(@min(Display.width - 1, max_x_unclamped));
-    const min_y: usize = @intCast(@max(0, min_y_unclamped));
+    const min_x: usize = @intCast(@min(@max(0, min_x_unclamped), max_x));
     const max_y: usize = @intCast(@min(Display.height - 1, max_y_unclamped));
+    const min_y: usize = @intCast(@min(@max(0, min_y_unclamped), max_y));
 
     return .{
         .min_x = min_x,

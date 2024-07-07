@@ -7,51 +7,63 @@ const Fonts = @import("text/fonts.zig");
 const Rasterizer = @import("rendering/rasterizer.zig");
 
 const Vector3 = @import("math/Vector3.zig");
+const Vector2 = @import("math/Vector2.zig");
 const Vector2i = @import("math/Vector2i.zig");
+const Quaternion = @import("math/Quaternion.zig");
 
-var player_pos = Vector2i{ .x = 0, .y = 30 };
+const Camera = @import("rendering/camera.zig");
+const Box = @import("../game/elements/box.zig");
+
+var box: Box = .{};
 
 pub fn process() void {
     process_input();
 
     Display.clear();
 
-    Display.set_pixel(@bitCast(player_pos.x), @bitCast(player_pos.y), true);
-    FontRenderer.print("This is a test!", Fonts.small, 5, 5, true);
+    FontRenderer.print("hello world lol", Fonts.classic, 5, 5, true);
 
-    const triangle: [3]Vector3 = .{
-        .{ .x = 2, .y = 20, .z = 0 },
-        .{ .x = @floatFromInt(player_pos.x), .y = @floatFromInt(player_pos.y), .z = 0 },
-        .{ .x = 40, .y = 30, .z = 0 },
-    };
+    box.transform.rotation = box.transform.rotation.mul(Quaternion.from_euler_angles(0, 11, 0));
 
-    Rasterizer.rasterize_triangle(triangle, .{
-        .thickness = 2,
-        .filled = false,
-        .screen_set = true,
-    });
+    box.transform.position = .{ .x = 0, .y = 0, .z = 5 };
+    box.render();
 }
 
-var delay: usize = 0;
-
 fn process_input() void {
-    if (delay == 0) {
-        delay = 2;
-    } else {
-        delay -= 1;
-        return;
-    }
+    var input: Vector2 = .{ .x = 0, .y = 0 };
+
+    const speed = 0.1;
+    const sensitivity = 1.0;
 
     if (Input.is_key_held(.two)) {
-        player_pos.y -= 1;
+        input.y += 1;
     }
     if (Input.is_key_held(.eight)) {
-        player_pos.y += 1;
+        input.y -= 1;
     }
     if (Input.is_key_held(.four)) {
-        player_pos.x -= 1;
+        input.x -= 1;
     }
     if (Input.is_key_held(.six)) {
-        player_pos.x += 1;
+        input.x += 1;
+    }
+
+    if (Input.is_key_held(.one)) {
+        Camera.transform.position.y += speed;
+    }
+    if (Input.is_key_held(.three)) {
+        Camera.transform.position.y -= speed;
+    }
+
+    if (!Input.is_key_held(.five)) {
+        const forward = Camera.transform.forward();
+        const side = Camera.transform.right();
+
+        const move_delta = forward.scale(speed * input.y).add(side.scale(speed * input.x));
+        Camera.transform.position = Camera.transform.position.add(move_delta);
+    } else {
+        const rotation_delta_pitch = Quaternion.from_euler_angles(input.y * sensitivity, 0, 0);
+        const rotation_delta_yaw = Quaternion.from_euler_angles(0, input.x * sensitivity, 0);
+        Camera.transform.rotation = rotation_delta_yaw.mul(Camera.transform.rotation).mul(rotation_delta_pitch);
     }
 }

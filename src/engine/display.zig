@@ -3,6 +3,8 @@ const std = @import("std");
 pub const width = 84;
 pub const height = 48;
 
+pub const aspect_ratio = @as(comptime_float, @floatFromInt(width)) / @as(comptime_float, @floatFromInt(height));
+
 var pixels = [_]bool{false} ** (width * height);
 
 pub fn fill(value: bool) void {
